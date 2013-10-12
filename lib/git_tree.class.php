@@ -55,7 +55,10 @@ class GitTree extends GitObject
 
     protected static function nodecmp(&$a, &$b)
     {
-        return strcmp($a->name, $b->name);
+        // tree has to be ordered in the _path_ order
+        // cf. git/fsck.c
+        return strcmp($a->name . ($a->is_dir ? '/' : ''),
+          $b->name . ($b->is_dir ? '/' : ''));
     }
 
     public function _serialize()
