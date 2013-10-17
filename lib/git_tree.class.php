@@ -82,7 +82,7 @@ class GitTree extends GitObject
      * @returns The GitTree or GitBlob at the specified path, or NULL if none
      * could be found.
      */
-    public function find($path)
+    public function find($path, $parentPath = "")
     {
         if (!is_array($path))
             $path = explode('/', $path);
@@ -96,7 +96,7 @@ class GitTree extends GitObject
             return NULL;
         $cur = $this->nodes[$path[0]]->object;
 
-        array_shift($path);
+        $name = array_shift($path);
         while ($path && !$path[0])
             array_shift($path);
 
@@ -106,8 +106,8 @@ class GitTree extends GitObject
         {
             $cur = $this->repo->getObject($cur);
             if (!($cur instanceof GitTree))
-                throw new GitTreeInvalidPathError;
-            return $cur->find($path);
+                throw new GitTreeInvalidPathError($parentPath . '/' . $name);
+            return $cur->find($path, $parentPath . '/' . $name);
         }
     }
 
@@ -163,7 +163,7 @@ class GitTree extends GitObject
      * created while updating the specified node. Those need to be written to
      * the repository together with the modified tree.
      */
-    public function updateNode($path, $mode, $object)
+    public function updateNode($path, $mode, $object, $parentPath = "")
     {
         if (!is_array($path))
             $path = explode('/', $path);
@@ -193,7 +193,7 @@ class GitTree extends GitObject
             {
                 $node = $this->nodes[$name];
                 if (!$node->is_dir)
-                    throw new GitTreeInvalidPathError;
+                    throw new GitTreeInvalidPathError($parentPath . '/' . $name);
                 $subtree = clone $this->repo->getObject($node->object);
             }
             else
@@ -208,7 +208,7 @@ class GitTree extends GitObject
 
                 $this->nodes[$node->name] = $node;
             }
-            $pending = $subtree->updateNode($path, $mode, $object);
+            $pending = $subtree->updateNode($path, $mode, $object, $parentPath . '/' . $name);
 
             $subtree->rehash();
             $node->object = $subtree->getName();
