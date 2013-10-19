@@ -292,7 +292,8 @@ class Git
              * FIXME use PHP stream filter API as soon as it behaves
              * consistently
              */
-            $data = gzuncompress(fread($pack, $size+512), $size);
+             // $size + 512 might be too small if blob is gzipped itself
+            $data = gzuncompress(fread($pack, $size*1.1+512), $size);
         }
         else if ($type == Git::OBJ_OFS_DELTA)
         {
