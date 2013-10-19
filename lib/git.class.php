@@ -267,7 +267,7 @@ class Git
      * @returns (array) an array consisting of the object type (int) and the
      * binary representation of the object (string)
      */
-    protected function unpackObject($pack, $object_offset)
+    protected function unpackObject($pack, $object_offset, $max_size = FALSE)
     {
         fseek($pack, $object_offset);
 
@@ -280,6 +280,7 @@ class Git
             $c = ord(fgetc($pack));
             $size |= (($c & 0x7F) << $i);
         }
+        if ($max_size !== FALSE) if (($max_size -= $size) < 0) throw new Exception("max_size reached: " . $max_size);
 
         /* compare sha1_file.c:1608 unpack_entry */
         if ($type == Git::OBJ_COMMIT || $type == Git::OBJ_TREE || $type == Git::OBJ_BLOB || $type == Git::OBJ_TAG)
@@ -320,14 +321,14 @@ class Git
 
             $base_offset = $object_offset - $offset;
             assert($base_offset >= 0);
-            list($type, $base) = $this->unpackObject($pack, $base_offset);
+            list($type, $base) = $this->unpackObject($pack, $base_offset, $max_size);
 
             $data = $this->applyDelta($delta, $base);
         }
         else if ($type == Git::OBJ_REF_DELTA)
         {
             $base_name = fread($pack, 20);
-            list($type, $base) = $this->getRawObject($base_name);
+            list($type, $base) = $this->getRawObject($base_name, $max_size);
 
             // $size is the length of the uncompressed delta
             $delta = gzuncompress(fread($pack, $size+512), $size);
@@ -349,7 +350,7 @@ class Git
      * @returns (array) an array consisting of the object type (int) and the
      * binary representation of the object (string)
      */
-    protected function getRawObject($object_name)
+    protected function getRawObject($object_name, $max_size = FALSE)
     {
         static $cache = array();
         /* FIXME allow limiting the cache to a certain size */
@@ -360,6 +361,7 @@ class Git
 	$path = sprintf('%s/objects/%s/%s', $this->dir, substr($sha1, 0, 2), substr($sha1, 2));
 	if (file_exists($path))
 	{
+            if ($max_size !== FALSE) if (($max_size -= filesize($path)) < 0) throw new Exception("max_size reached: " . $max_size);
             list($hdr, $object_data) = explode("\0", gzuncompress(file_get_contents($path)), 2);
 
 	    sscanf($hdr, "%s %d", $type, $object_size);
@@ -379,7 +381,7 @@ class Git
             if ($magic != 'PACK' || $version != 2)
                 throw new Exception('unsupported pack format');
 
-            $r = $this->unpackObject($pack, $object_offset);
+            $r = $this->unpackObject($pack, $object_offset, $max_size);
             fclose($pack);
 	}
         else
@@ -394,9 +396,9 @@ class Git
      * @param $name (string) name of the object (binary SHA1)
      * @returns (GitObject) the object
      */
-    public function getObject($name)
+    public function getObject($name, $max_size = FALSE)
     {
-	list($type, $data) = $this->getRawObject($name);
+	list($type, $data) = $this->getRawObject($name, $max_size);
 	$object = GitObject::create($this, $type);
 	$object->unserialize($data);
 	assert($name == $object->getName());
