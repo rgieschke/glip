@@ -87,7 +87,7 @@ class GitTree extends GitObject
         if (!is_array($path))
             $path = explode('/', $path);
 
-        while ($path && !$path[0])
+        while ($path && ($path[0] === ''))
             array_shift($path);
         if (!$path)
             return $this->getName();
@@ -97,7 +97,7 @@ class GitTree extends GitObject
         $cur = $this->nodes[$path[0]]->object;
 
         $name = array_shift($path);
-        while ($path && !$path[0])
+        while ($path && ($path[0] === ''))
             array_shift($path);
 
         if (!$path)
