@@ -141,14 +141,16 @@ class GitObject
 	$dir = dirname($path);
 	if (!is_dir($dir))
 	    mkdir(dirname($path), 0770);
-	$f = fopen($path, 'ab');
+	$tempPath = $path . "_" . mt_rand(0, 1000000) . ".tmp";
+	$f = fopen($tempPath, 'abx');
+	if ($f === FALSE) return FALSE;
 	flock($f, LOCK_EX);
 	ftruncate($f, 0);
 	$data = $this->serialize();
 	$data = Git::getTypeName($this->type).' '.strlen($data)."\0".$data;
 	fwrite($f, gzcompress($data));
 	fclose($f);
-	return TRUE;
+	return rename($tempPath, $path);
     }
 }
 
