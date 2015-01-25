@@ -418,22 +418,12 @@ class Git
 	if (file_exists($path))
 	    return sha1_bin(file_get_contents($path));
 	$path = sprintf('%s/packed-refs', $this->dir);
-	if (file_exists($path))
-	{
-	    $head = NULL;
-	    $f = fopen($path, 'rb');
-	    flock($f, LOCK_SH);
-	    while ($head === NULL && ($line = fgets($f)) !== FALSE)
-	    {
-		if ($line{0} == '#')
-		    continue;
-		$parts = explode(' ', trim($line));
-		if (count($parts) == 2 && $parts[1] == $subpath)
-		    $head = sha1_bin($parts[0]);
-	    }
-	    fclose($f);
-	    if ($head !== NULL)
-		return $head;
+	$refs = @file_get_contents($path);
+	if (($refs !== false) && (($pos = strpos($refs, $subpath)) !== false)) {
+		if (substr($refs, $pos - 1 - 40 - 1, 1) === "\n") {
+			$ref = substr($refs, $pos - 1 - 40, 40);
+			if (preg_match("/^[0-9a-f]{40}$/", $ref) === 1) return sha1_bin($ref);
+		}
 	}
 	throw new Exception(sprintf('no such branch: %s', $branch));
     }
